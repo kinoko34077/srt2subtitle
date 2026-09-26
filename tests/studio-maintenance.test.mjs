@@ -51,6 +51,14 @@ test("busy state locks run-affecting controls while leaving result downloads ava
   assert.match(html, /data-run-lock/);
 });
 
+test("manual downloads keep the visible output name even while project controls are disabled", async () => {
+  const source = await read("frontend/studio.js");
+  const outputName = section(source, "function outputName(extension)", "function formatDateTime");
+
+  assert.match(outputName, /querySelector\('\[name="output_name"\]'\)/);
+  assert.doesNotMatch(outputName, /readProjectForm\(\)/);
+});
+
 test("persistent preset deletion requires explicit confirmation before request", async () => {
   const source = await read("frontend/studio.js");
   const deletion = section(source, "async function deletePresetRow", "function renderSegments");
