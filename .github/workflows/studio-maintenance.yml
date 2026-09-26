@@ -7,6 +7,14 @@ on:
       - "frontend/studio.html"
       - "tests/studio-maintenance.test.mjs"
       - ".github/workflows/studio-maintenance.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/studio.js"
+      - "frontend/studio.html"
+      - "tests/studio-maintenance.test.mjs"
+      - ".github/workflows/studio-maintenance.yml"
 
 permissions:
   contents: read
@@ -19,5 +27,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Check Studio JavaScript syntax
+        run: node --check frontend/studio.js
       - name: Run Studio maintenance regressions
         run: node --test tests/studio-maintenance.test.mjs
