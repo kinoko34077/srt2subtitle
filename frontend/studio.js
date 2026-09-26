@@ -700,7 +700,8 @@ function base64ToBytes(contentB64) {
 }
 
 function outputName(extension) {
-  return `${readProjectForm().output_name}.${extension}`;
+  const configuredName = document.querySelector('[name="output_name"]').value.trim() || "output_studio";
+  return `${configuredName}.${extension}`;
 }
 
 function formatDateTime(value) {
