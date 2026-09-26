@@ -90,13 +90,13 @@ function addSpeakerCard(initialData = null) {
 async function runIntegratedExport() {
   const hadCommittedResult = hasCommittedResult();
   try {
+    const runSnapshot = captureRunSnapshot();
     setBusy(true);
     progressList.innerHTML = "";
     setupStatus.textContent = hadCommittedResult
       ? "処理中（前回の成功結果を保持しています）"
       : "処理中";
 
-    const runSnapshot = captureRunSnapshot();
     const speakerPayloads = [];
     for (const [index, speakerSnapshot] of runSnapshot.speakers.entries()) {
       const speaker = await prepareSpeaker(speakerSnapshot, index + 1, runSnapshot.transcriber);
