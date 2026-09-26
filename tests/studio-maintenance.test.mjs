@@ -25,11 +25,15 @@ test("failed reruns preserve the last committed result and downloads", async () 
   assert.match(source, /function commitIntegratedResult\(response\)/);
 });
 
-test("integrated export captures one immutable run snapshot before async preparation", async () => {
+test("integrated export captures one immutable run snapshot before controls are disabled or async work starts", async () => {
   const source = await read("frontend/studio.js");
   const run = section(source, "async function runIntegratedExport()", "async function prepareSpeaker");
 
   assert.match(run, /const runSnapshot = captureRunSnapshot\(\);/);
+  assert.ok(
+    run.indexOf("const runSnapshot = captureRunSnapshot();") < run.indexOf("setBusy(true);"),
+    "run snapshot must be captured before disabling form controls so FormData keeps user-entered values",
+  );
   assert.match(run, /for \(const \[index, speakerSnapshot\] of runSnapshot\.speakers\.entries\(\)\)/);
   assert.match(run, /prepareSpeaker\(speakerSnapshot, index \+ 1, runSnapshot\.transcriber\)/);
   assert.match(source, /function captureRunSnapshot\(\)/);
