@@ -8,6 +8,7 @@ const state = {
     jsonContent: "",
   },
   activeSpeakerCard: null,
+  busy: false,
 };
 
 const speakerList = document.querySelector("#speakerList");
@@ -51,6 +52,12 @@ function addSpeakerCard(initialData = null) {
 
   card.querySelector(".save-preset").addEventListener("click", () => void savePresetFromCard(card));
   card.querySelector(".remove-speaker").addEventListener("click", () => {
+    if (
+      isConfiguredSpeakerCard(card) &&
+      !confirmDestructiveAction("設定済みの話者を削除します。選択したファイルや入力内容はこの画面から失われます。よろしいですか？")
+    ) {
+      return;
+    }
     if (state.activeSpeakerCard === card) state.activeSpeakerCard = null;
     card.remove();
     if (!speakerList.children.length) addSpeakerCard();
@@ -81,63 +88,97 @@ function addSpeakerCard(initialData = null) {
 }
 
 async function runIntegratedExport() {
+  const hadCommittedResult = hasCommittedResult();
   try {
     setBusy(true);
-    setDownloadDisabled(true);
-    state.segments = [];
-    state.speakers = [];
-    state.output = { exoContentB64: "", srtContent: "", jsonContent: "" };
-    renderSegments();
-    renderAnalysis(null);
     progressList.innerHTML = "";
-    setupStatus.textContent = "処理中";
-    normalizeSpeakerLayers();
+    setupStatus.textContent = hadCommittedResult
+      ? "処理中（前回の成功結果を保持しています）"
+      : "処理中";
 
-    const project = readProjectForm();
-    const cards = [...speakerList.querySelectorAll(".speaker-card")];
-    if (!cards.length) throw new Error("話者を1人以上追加してください。");
-
+    const runSnapshot = captureRunSnapshot();
     const speakerPayloads = [];
-    for (const [index, card] of cards.entries()) {
-      const speaker = await prepareSpeaker(card, index + 1);
+    for (const [index, speakerSnapshot] of runSnapshot.speakers.entries()) {
+      const speaker = await prepareSpeaker(speakerSnapshot, index + 1, runSnapshot.transcriber);
       speakerPayloads.push(speaker);
     }
 
     updateProgress("EXO", "変換中", "progress-ok");
     const response = await fetchJson("/api/v2/convert", {
       method: "POST",
-      body: buildConvertFormData(project, speakerPayloads),
+      body: buildConvertFormData(runSnapshot.project, speakerPayloads),
     });
 
-    state.segments = response.segments || [];
-    state.speakers = (response.project?.speakers || []).map((speaker) => ({
-      speaker_id: speaker.speaker_id,
-      display_name: speaker.display_name,
-    }));
-    state.output.exoContentB64 = response.exo_content_b64 || "";
-    state.output.srtContent = response.srt_content || "";
-    state.output.jsonContent = response.json_content || "";
-    renderSegments();
-    renderAnalysis(response.analysis || null);
+    commitIntegratedResult(response);
     setDownloadDisabled(false);
 
-    downloadBase64(outputName("exo"), state.output.exoContentB64, "application/octet-stream");
+    downloadBase64(`${runSnapshot.project.output_name}.exo`, state.output.exoContentB64, "application/octet-stream");
     setupStatus.textContent = `${state.segments.length} 件生成、EXO保存`;
     updateProgress("EXO", "保存開始", "progress-ok");
   } catch (error) {
-    setupStatus.textContent = formatError(error, "統合出力に失敗しました。");
+    const message = formatError(error, "統合出力に失敗しました。");
+    setupStatus.textContent = hadCommittedResult
+      ? `${message} 前回の成功結果は保持しています。`
+      : message;
     updateProgress("エラー", setupStatus.textContent, "progress-error");
-    setDownloadDisabled(true);
+    setDownloadDisabled(!hadCommittedResult);
   } finally {
     setBusy(false);
   }
 }
 
-async function prepareSpeaker(card, index) {
-  const displayName = card.querySelector('[name="display_name"]').value.trim() || `話者${index}`;
-  const mediaFile = card.querySelector('[name="media_file"]').files[0];
-  let srtFile = await resolveCardFile(card, "srt");
-  const templateFile = await resolveCardFile(card, "template");
+function captureRunSnapshot() {
+  normalizeSpeakerLayers();
+  const cards = [...speakerList.querySelectorAll(".speaker-card")];
+  if (!cards.length) throw new Error("話者を1人以上追加してください。");
+
+  const speakers = cards.map((card, index) => captureSpeakerSnapshot(card, index + 1));
+  return Object.freeze({
+    project: Object.freeze(readProjectForm()),
+    transcriber: Object.freeze({
+      model: modelInput.value,
+      language: languageInput.value.trim() || "ja",
+    }),
+    speakers: Object.freeze(speakers),
+  });
+}
+
+function captureSpeakerSnapshot(card, index) {
+  const selectedSrt = card.querySelector('[name="srt_file"]').files[0] || null;
+  const selectedTemplate = card.querySelector('[name="template_exo"]').files[0] || null;
+  const srtFile = selectedSrt || (
+    card._generatedSrtFile
+      ? fileFromStored(card._generatedSrtFile, "text/plain;charset=utf-8")
+      : null
+  );
+  const templateFile = selectedTemplate || (
+    card._storedTemplateFile
+      ? fileFromStored(card._storedTemplateFile, card._storedTemplateFile.mime_type || "application/octet-stream")
+      : null
+  );
+
+  return Object.freeze({
+    card,
+    display_name: card.querySelector('[name="display_name"]').value.trim() || `話者${index}`,
+    mediaFile: card.querySelector('[name="media_file"]').files[0] || null,
+    srtFile,
+    templateFile,
+    base_layer: Number(card.querySelector('[name="base_layer"]').value),
+    subtitle_rule: Object.freeze(readSubtitleRule(card)),
+  });
+}
+
+async function prepareSpeaker(speakerSnapshot, index, transcriber) {
+  const {
+    card,
+    display_name: displayName,
+    mediaFile,
+    templateFile,
+    base_layer: baseLayer,
+    subtitle_rule: subtitleRule,
+  } = speakerSnapshot;
+  let { srtFile } = speakerSnapshot;
+
   if (!templateFile) throw new Error(`${displayName} の見本EXOまたはプリセットを指定してください。`);
 
   if (!srtFile) {
@@ -145,8 +186,8 @@ async function prepareSpeaker(card, index) {
     updateProgress(displayName, "文字起こし中", "progress-ok");
     const formData = new FormData();
     formData.append("engine", "whisper");
-    formData.append("model", modelInput.value);
-    formData.append("language", languageInput.value.trim() || "ja");
+    formData.append("model", transcriber.model);
+    formData.append("language", transcriber.language);
     formData.append("media_file", mediaFile, mediaFile.name);
     const response = await fetchJson("/api/transcriber/transcribe", { method: "POST", body: formData });
     const output = response.outputs?.[0];
@@ -167,11 +208,35 @@ async function prepareSpeaker(card, index) {
 
   return {
     display_name: displayName,
-    base_layer: Number(card.querySelector('[name="base_layer"]').value),
-    subtitle_rule: readSubtitleRule(card),
+    base_layer: baseLayer,
+    subtitle_rule: subtitleRule,
     srtFile,
     templateFile,
   };
+}
+
+function hasCommittedResult() {
+  return Boolean(
+    state.output.exoContentB64 ||
+    state.output.srtContent ||
+    state.output.jsonContent ||
+    state.segments.length,
+  );
+}
+
+function commitIntegratedResult(response) {
+  state.segments = response.segments || [];
+  state.speakers = (response.project?.speakers || []).map((speaker) => ({
+    speaker_id: speaker.speaker_id,
+    display_name: speaker.display_name,
+  }));
+  state.output = {
+    exoContentB64: response.exo_content_b64 || "",
+    srtContent: response.srt_content || "",
+    jsonContent: response.json_content || "",
+  };
+  renderSegments();
+  renderAnalysis(response.analysis || null);
 }
 
 function buildConvertFormData(project, speakers) {
@@ -309,6 +374,7 @@ function renderPresetTable() {
     actions.appendChild(makeRowButton("削除", () => void deletePresetRow(preset.preset_id), "ghost danger"));
     presetTableBody.appendChild(row);
   }
+  if (state.busy) setBusy(true);
 }
 
 function makeRowButton(label, handler, className = "ghost") {
@@ -360,6 +426,12 @@ async function savePresetRow(row, presetId) {
 }
 
 async function deletePresetRow(presetId) {
+  const preset = state.presets.find((item) => item.preset_id === presetId);
+  const presetName = preset?.name || presetId;
+  if (!confirmDestructiveAction(`プリセット「${presetName}」を削除します。複数プロジェクトから再利用できる保存データです。よろしいですか？`)) {
+    return;
+  }
+
   try {
     await fetchJson("/api/v2/presets/delete", {
       method: "POST",
@@ -379,6 +451,25 @@ async function deletePresetRow(presetId) {
   } catch (error) {
     presetStatus.textContent = formatError(error, "プリセット削除に失敗しました。");
   }
+}
+
+function confirmDestructiveAction(message) {
+  return window.confirm(message);
+}
+
+function isConfiguredSpeakerCard(card) {
+  const hasNamedSpeaker = Boolean(card.querySelector('[name="display_name"]').value.trim());
+  const hasSelectedPreset = Boolean(card.dataset.presetId || card.querySelector('[name="preset_select"]').value);
+  const hasSelectedFile = [...card.querySelectorAll('input[type="file"]')].some((input) => input.files.length > 0);
+  const hasStoredFile = Boolean(card._generatedSrtFile || card._storedTemplateFile);
+  const rule = readSubtitleRule(card);
+  const hasEditedRule =
+    rule.max_chars_per_line !== 18 ||
+    rule.max_lines !== 2 ||
+    rule.min_duration_sec !== 0.8 ||
+    rule.max_duration_sec !== 4.0;
+
+  return hasNamedSpeaker || hasSelectedPreset || hasSelectedFile || hasStoredFile || hasEditedRule;
 }
 
 function renderSegments() {
@@ -420,6 +511,7 @@ function bindDropField(card, kind) {
   for (const eventName of ["dragenter", "dragover"]) {
     field.addEventListener(eventName, (event) => {
       event.preventDefault();
+      if (state.busy) return;
       field.classList.add("drag-over");
     });
   }
@@ -430,6 +522,7 @@ function bindDropField(card, kind) {
     });
   }
   field.addEventListener("drop", (event) => {
+    if (state.busy) return;
     const file = [...(event.dataTransfer?.files || [])][0];
     if (!file || !isAllowedFile(kind, file.name)) return;
     const transfer = new DataTransfer();
@@ -541,7 +634,22 @@ async function fetchJson(path, options) {
 }
 
 function setBusy(busy) {
+  state.busy = busy;
   runAllButton.disabled = busy;
+
+  const controls = new Set(document.querySelectorAll("[data-run-lock]"));
+  for (const selector of [
+    "#projectForm input",
+    "#projectForm select",
+    "#speakerList input",
+    "#speakerList select",
+    "#speakerList button",
+    "#presetTableBody input",
+    "#presetTableBody button",
+  ]) {
+    for (const control of document.querySelectorAll(selector)) controls.add(control);
+  }
+  for (const control of controls) control.disabled = busy;
 }
 
 function setDownloadDisabled(disabled) {
