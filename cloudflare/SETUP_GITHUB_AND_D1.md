@@ -71,7 +71,7 @@ npx wrangler d1 execute srt2subtitle --remote --file=schema.sql
 
 ## 6. wrangler.jsonc へ D1 binding 追加
 
-[wrangler.jsonc](C:\Users\kinok\OneDrive\ドキュメント\プログラミング_code\字幕生成\cloudflare\wrangler.jsonc) のコメント部を実値で埋めます。
+[wrangler.jsonc](./wrangler.jsonc) のコメント部を実値で埋めます。
 
 ```jsonc
 "d1_databases": [
