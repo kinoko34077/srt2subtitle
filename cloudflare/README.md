@@ -48,7 +48,7 @@ npm run check
 ## Cloudflare 連携
 
 GitHub 連携、D1 作成、`schema.sql` 適用、`wrangler.jsonc` の埋め方は
-[SETUP_GITHUB_AND_D1.md](C:\Users\kinok\OneDrive\ドキュメント\プログラミング_code\字幕生成\cloudflare\SETUP_GITHUB_AND_D1.md)
+[SETUP_GITHUB_AND_D1.md](./SETUP_GITHUB_AND_D1.md)
 を参照してください。
 
 ## 次にやること
