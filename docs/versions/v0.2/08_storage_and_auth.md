@@ -62,3 +62,20 @@
 - まずは D1 のみで共有を成立させる
 - `payload_json` に SRT / EXO / preview 用メタデータを含める
 - R2 は必要性が出てから追加する
+
+
+## Local V2 store durability boundary
+
+`backend/v2_store.py` must not overwrite the only accepted `project.json` / `preset.json` in place.
+
+Persistence contract:
+
+1. Serialize JSON in memory before touching the target file.
+2. Write a temporary file in the target directory.
+3. Flush and `fsync` the temporary file contents.
+4. Close the temporary file, then publish it with same-filesystem `os.replace`.
+5. If any step before replace fails, remove the temporary file and preserve the previous accepted target unchanged.
+
+This guarantees that readers do not observe a partially written target and that failures before replace do not destroy the previous accepted file. The implementation does not `fsync` the directory entry, so crash/power-loss durability of directory metadata immediately after replace is outside this guarantee.
+
+If an existing store file cannot be decoded as UTF-8 JSON, the store must stop with bounded `ERR-STORAGE-CORRUPT` semantics and must not silently reinitialize or overwrite that file. Recovery from corrupted data is an explicit user/application action.
