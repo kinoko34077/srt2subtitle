@@ -64,7 +64,8 @@ class V2Store:
     def list_projects(self) -> list[dict]:
         items: list[dict] = []
         for entry in sorted(self.projects_dir.iterdir()):
-            if not entry.is_dir():
+            entity_dir = self._entity_dir(self.projects_dir, entry.name)
+            if not entity_dir.is_dir():
                 continue
             path = self._entity_file(self.projects_dir, entry.name, "project.json")
             if not path.exists():
@@ -104,7 +105,8 @@ class V2Store:
     def list_presets(self) -> list[dict]:
         items: list[dict] = []
         for entry in sorted(self.presets_dir.iterdir()):
-            if not entry.is_dir():
+            entity_dir = self._entity_dir(self.presets_dir, entry.name)
+            if not entity_dir.is_dir():
                 continue
             path = self._entity_file(self.presets_dir, entry.name, "preset.json")
             if not path.exists():
