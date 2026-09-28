@@ -15,7 +15,7 @@ from .exo_parser import ExoTemplateError, decode_exo_bytes, parse_exo_template
 from .local_transcriber import MediaInput, transcribe_media_to_srt
 from .transcribe import TranscriptionError
 from .v2_converter import convert_srt_project
-from .v2_store import V2Store
+from .v2_store import InvalidStoreIdError, V2Store
 from .validators import ValidationError
 
 
@@ -68,14 +68,16 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.OK, {"presets": V2_STORE.list_presets()})
                 return
             if parsed.path.startswith("/api/v2/projects/"):
-                project_id = parsed.path.rsplit("/", 1)[-1]
+                project_id = parsed.path.removeprefix("/api/v2/projects/")
                 self._send_json(HTTPStatus.OK, V2_STORE.get_project(project_id))
                 return
             if parsed.path.startswith("/api/v2/presets/"):
-                preset_id = parsed.path.rsplit("/", 1)[-1]
+                preset_id = parsed.path.removeprefix("/api/v2/presets/")
                 self._send_json(HTTPStatus.OK, V2_STORE.get_preset(preset_id))
                 return
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "NOT_FOUND"})
+        except InvalidStoreIdError as exc:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "ERR-STORAGE-ID-001", "message": str(exc)})
         except FileNotFoundError:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "NOT_FOUND", "message": "対象が見つかりません。"})
         except Exception as exc:  # noqa: BLE001
@@ -109,6 +111,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": exc.code, "message": exc.args[0]})
         except TranscriptionError as exc:
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": exc.code, "message": exc.message})
+        except InvalidStoreIdError as exc:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "ERR-STORAGE-ID-001", "message": str(exc)})
         except FileNotFoundError:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "NOT_FOUND", "message": "対象が見つかりません。"})
         except Exception as exc:  # noqa: BLE001
