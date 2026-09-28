@@ -15,7 +15,7 @@ from .exo_parser import ExoTemplateError, decode_exo_bytes, parse_exo_template
 from .local_transcriber import MediaInput, transcribe_media_to_srt
 from .transcribe import TranscriptionError
 from .v2_converter import convert_srt_project
-from .v2_store import InvalidStoreIdError, V2Store
+from .v2_store import InvalidStoreIdError, StoreCorruptionError, V2Store
 from .validators import ValidationError
 
 
@@ -78,6 +78,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "NOT_FOUND"})
         except InvalidStoreIdError as exc:
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": "ERR-STORAGE-ID-001", "message": str(exc)})
+        except StoreCorruptionError as exc:
+            self._send_json(HTTPStatus.CONFLICT, {"error": "ERR-STORAGE-CORRUPT", "message": str(exc)})
         except FileNotFoundError:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "NOT_FOUND", "message": "対象が見つかりません。"})
         except Exception as exc:  # noqa: BLE001
@@ -113,6 +115,8 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": exc.code, "message": exc.message})
         except InvalidStoreIdError as exc:
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": "ERR-STORAGE-ID-001", "message": str(exc)})
+        except StoreCorruptionError as exc:
+            self._send_json(HTTPStatus.CONFLICT, {"error": "ERR-STORAGE-CORRUPT", "message": str(exc)})
         except FileNotFoundError:
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "NOT_FOUND", "message": "対象が見つかりません。"})
         except Exception as exc:  # noqa: BLE001
