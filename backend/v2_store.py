@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+
+class StoreCorruptionError(RuntimeError):
+    """Raised when an existing local store file cannot be decoded safely."""
 
 
 def _utc_now() -> str:
@@ -105,8 +111,37 @@ class V2Store:
 
     @staticmethod
     def _read_json(path: Path) -> dict:
-        return json.loads(path.read_text(encoding="utf-8"))
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise StoreCorruptionError(
+                f"Stored {path.name} is corrupted and was not modified. Restore or explicitly replace it."
+            ) from exc
 
     @staticmethod
     def _write_json(path: Path, data: dict) -> None:
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
+        serialized = json.dumps(data, ensure_ascii=False, indent=2)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                newline="\n",
+                dir=path.parent,
+                prefix=f".{path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temp_path = Path(handle.name)
+                handle.write(serialized)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, path)
+            temp_path = None
+        finally:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink()
+                except FileNotFoundError:
+                    pass
