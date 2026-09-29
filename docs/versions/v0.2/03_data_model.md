@@ -88,3 +88,16 @@
 - R2には原本を置く
 - プリセットは共有用、プロジェクトは案件用として分ける
 - プロジェクト内では、プリセット適用後の個別上書きを許可する
+
+## Local V2 identifier contract
+
+ローカル V2 store でディレクトリ名として使用する `project_id` / `preset_id` は、論理 ID とファイルシステムパスを混同しないため次を満たす。
+
+- 1〜128 文字。
+- ASCII 英数字で開始する。
+- 使用可能文字は ASCII 英数字、`_`、`-` のみ。
+- `.`, `..`, `/`, `\\`, ドライブ表記、空白、拡張子形式などの path-like 文字列は受理しない。
+- Windows の予約デバイス名 (`CON`, `PRN`, `AUX`, `NUL`, `COM1`〜`COM9`, `LPT1`〜`LPT9`) は受理しない。
+- 実際の read/write/delete/list 前に canonical path を検証し、各 `projects/` / `presets/` の直下にある当該 ID 自身のディレクトリ以外へ解決される場合は失敗させる。
+
+既存の自動生成 ID `v2prj_<8 hex>` / `v2preset_<8 hex>` と、仕様例の `prj_*` / `preset_*` はこの契約内である。
