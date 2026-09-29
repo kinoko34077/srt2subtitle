@@ -56,12 +56,33 @@ class V2StoreIdSecurityTests(unittest.TestCase):
         ):
             with self.assertRaises(InvalidStoreIdError):
                 operation()
-    def test_list_rejects_invalid_on_disk_entity_names_before_reading(self) -> None:
-        invalid_dir = self.store.projects_dir / "bad.id"
-        invalid_dir.mkdir()
-        (invalid_dir / "project.json").write_text("{}", encoding="utf-8")
-        with self.assertRaises(InvalidStoreIdError):
-            self.store.list_projects()
+    def test_list_ignores_stray_invalid_named_entries(self) -> None:
+        self.store.save_project(
+            {"project": {"name": "ok"}, "speakers": []},
+            "project1",
+        )
+        (self.store.projects_dir / ".DS_Store").write_text("stray", encoding="utf-8")
+        invalid_project_dir = self.store.projects_dir / "bad.id"
+        invalid_project_dir.mkdir()
+        (invalid_project_dir / "project.json").write_text("{}", encoding="utf-8")
+
+        self.store.save_preset(
+            {"name": "preset", "subtitle_rule": {}, "base_layer": 1, "template_exo": {}},
+            "preset1",
+        )
+        (self.store.presets_dir / "desktop.ini").write_text("stray", encoding="utf-8")
+        invalid_preset_dir = self.store.presets_dir / "bad.id"
+        invalid_preset_dir.mkdir()
+        (invalid_preset_dir / "preset.json").write_text("{}", encoding="utf-8")
+
+        self.assertEqual(
+            [item["project_id"] for item in self.store.list_projects()],
+            ["project1"],
+        )
+        self.assertEqual(
+            [item["preset_id"] for item in self.store.list_presets()],
+            ["preset1"],
+        )
 
     def test_generated_ids_remain_within_the_valid_contract(self) -> None:
         project = self.store.save_project({"project": {"name": "ok"}, "speakers": []})

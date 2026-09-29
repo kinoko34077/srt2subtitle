@@ -60,6 +60,10 @@ class V2Store:
     def list_projects(self) -> list[dict]:
         items: list[dict] = []
         for entry in sorted(self.projects_dir.iterdir()):
+            try:
+                validate_v2_store_id(entry.name)
+            except InvalidStoreIdError:
+                continue
             entity_dir = self._entity_dir(self.projects_dir, entry.name)
             if not entity_dir.is_dir():
                 continue
@@ -101,6 +105,10 @@ class V2Store:
     def list_presets(self) -> list[dict]:
         items: list[dict] = []
         for entry in sorted(self.presets_dir.iterdir()):
+            try:
+                validate_v2_store_id(entry.name)
+            except InvalidStoreIdError:
+                continue
             entity_dir = self._entity_dir(self.presets_dir, entry.name)
             if not entity_dir.is_dir():
                 continue
