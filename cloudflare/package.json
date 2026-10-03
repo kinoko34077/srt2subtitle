@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "tsc src/lib/exo.ts --target ES2022 --module ES2022 --moduleResolution Bundler --strict --skipLibCheck --lib ES2022,WebWorker --types @cloudflare/workers-types --outDir node_modules/.cache/exo-test && node --test tests/exo.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260508.0",

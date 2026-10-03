@@ -168,14 +168,13 @@ function encodeTextValue(text: string, encoding: string, originalValue: string):
 
 function encodeUtf16Le(text: string): Uint8Array {
   const buffer = new Uint8Array(text.length * 2);
-  let offset = 0;
-  for (const char of text) {
-    const code = char.charCodeAt(0);
-    buffer[offset] = code & 0xff;
-    buffer[offset + 1] = code >> 8;
-    offset += 2;
+  for (let index = 0; index < text.length; index += 1) {
+    const codeUnit = text.charCodeAt(index);
+    const offset = index * 2;
+    buffer[offset] = codeUnit & 0xff;
+    buffer[offset + 1] = codeUnit >> 8;
   }
-  return buffer.slice(0, offset);
+  return buffer;
 }
 
 function padBytes(bytes: Uint8Array, targetLength: number): Uint8Array {
