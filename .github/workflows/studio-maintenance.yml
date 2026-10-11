@@ -5,6 +5,7 @@ on:
     paths:
       - "frontend/studio.js"
       - "frontend/studio.html"
+      - "frontend/studio.css"
       - "tests/studio-maintenance.test.mjs"
       - ".github/workflows/studio-maintenance.yml"
   push:
@@ -13,6 +14,7 @@ on:
     paths:
       - "frontend/studio.js"
       - "frontend/studio.html"
+      - "frontend/studio.css"
       - "tests/studio-maintenance.test.mjs"
       - ".github/workflows/studio-maintenance.yml"
 
