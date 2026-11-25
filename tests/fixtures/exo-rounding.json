@@ -1,0 +1,120 @@
+{
+  "frameCases": [
+    {
+      "name": "even and odd half ties",
+      "fps": 30,
+      "segments": [
+        {
+          "speaker_id": "a",
+          "start_sec": 0.15,
+          "end_sec": 0.25,
+          "text": "A",
+          "warnings": []
+        },
+        {
+          "speaker_id": "b",
+          "start_sec": 0.35,
+          "end_sec": 0.45,
+          "text": "B",
+          "warnings": []
+        }
+      ],
+      "expected": [
+        [
+          5,
+          8
+        ],
+        [
+          11,
+          14
+        ]
+      ]
+    },
+    {
+      "name": "ordinary rounding and overlap",
+      "fps": 30,
+      "segments": [
+        {
+          "speaker_id": "a",
+          "start_sec": 0.11,
+          "end_sec": 0.25,
+          "text": "A",
+          "warnings": []
+        },
+        {
+          "speaker_id": "a",
+          "start_sec": 0.25,
+          "end_sec": 0.29,
+          "text": "B",
+          "warnings": []
+        },
+        {
+          "speaker_id": "b",
+          "start_sec": 0.25,
+          "end_sec": 0.29,
+          "text": "C",
+          "warnings": []
+        }
+      ],
+      "expected": [
+        [
+          4,
+          8
+        ],
+        [
+          9,
+          9
+        ],
+        [
+          9,
+          9
+        ]
+      ]
+    },
+    {
+      "name": "fractional fps",
+      "fps": 29.97,
+      "segments": [
+        {
+          "speaker_id": "a",
+          "start_sec": 0.05,
+          "end_sec": 0.15,
+          "text": "A",
+          "warnings": []
+        }
+      ],
+      "expected": [
+        [
+          2,
+          4
+        ]
+      ]
+    }
+  ],
+  "srtCases": [
+    {
+      "segments": [
+        {
+          "speaker_id": "a",
+          "start_sec": 0.0045,
+          "end_sec": 0.0075,
+          "text": "字幕",
+          "warnings": []
+        }
+      ],
+      "expected": "1\n00:00:00,004 --> 00:00:00,008\n字幕\n"
+    },
+    {
+      "segments": [
+        {
+          "speaker_id": "a",
+          "start_sec": 0.9995,
+          "end_sec": 1.0025,
+          "text": "境界",
+          "warnings": []
+        }
+      ],
+      "expected": "1\n00:00:01,000 --> 00:00:01,002\n境界\n"
+    }
+  ]
+}

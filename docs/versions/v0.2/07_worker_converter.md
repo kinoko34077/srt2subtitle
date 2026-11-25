@@ -34,6 +34,8 @@
 2. `end_frame = max(start_frame, round(end_sec * fps))`
 3. 同一話者の重複は必要に応じて補正する
 
+`round` は既存ローカル版と同じ最近接整数への丸めとし、ちょうど中間の場合は偶数側へ丸める（4.5→4、7.5→8）。SRT再出力のミリ秒変換にも同じ規則を使う。PythonとWorkerは `tests/fixtures/exo-rounding.json` の共通回帰データで一致を検証する。
+
 ## template複製
 
 処理:

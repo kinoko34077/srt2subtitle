@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildExo, parseExoTemplate } from "../node_modules/.cache/exo-test/exo.js";
+import { readFileSync } from "node:fs";
+import { assignFrames, buildSrt, buildExo, parseExoTemplate } from "../node_modules/.cache/exo-test/exo.js";
 
 function makeSpeaker() {
   return {
@@ -99,5 +100,18 @@ for (const text of ["字幕テスト", "字幕😀テスト"]) {
     const parsed = parseExoTemplate(exo, "spk_001", "generated.exo");
     assert.equal(parsed.placeholder_text, text);
     assert.equal(parsed.text_encoding, "utf16le_hex");
+  });
+}
+
+const parity = JSON.parse(readFileSync(new URL("../../tests/fixtures/exo-rounding.json", import.meta.url), "utf8"));
+for (const fixture of parity.frameCases) {
+  test("Frame rounding parity: " + fixture.name, () => {
+    const result = assignFrames(structuredClone(fixture.segments), fixture.fps, {a: 1, b: 2});
+    assert.deepEqual(result.map(s => [s.start_frame, s.end_frame]), fixture.expected);
+  });
+}
+for (const fixture of parity.srtCases) {
+  test("SRT millisecond rounding parity: " + fixture.expected.split("\n")[1], () => {
+    assert.equal(buildSrt(fixture.segments), fixture.expected);
   });
 }
