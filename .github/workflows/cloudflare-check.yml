@@ -4,10 +4,18 @@ on:
   push:
     paths:
       - "cloudflare/**"
+      - "backend/exo_writer.py"
+      - "backend/exo_parser.py"
+      - "tests/test_exo_rounding.py"
+      - "tests/fixtures/exo-rounding.json"
       - ".github/workflows/cloudflare-check.yml"
   pull_request:
     paths:
       - "cloudflare/**"
+      - "backend/exo_writer.py"
+      - "backend/exo_parser.py"
+      - "tests/test_exo_rounding.py"
+      - "tests/fixtures/exo-rounding.json"
       - ".github/workflows/cloudflare-check.yml"
 
 permissions:
@@ -34,5 +42,8 @@ jobs:
       - name: Type check
         run: npm run check
 
-      - name: Run EXO Unicode regression tests
+      - name: Run EXO Unicode and rounding regression tests
         run: npm test
+      - name: Check local Python against the same rounding fixture
+        working-directory: .
+        run: python3 -m unittest discover -s tests -p test_exo_rounding.py

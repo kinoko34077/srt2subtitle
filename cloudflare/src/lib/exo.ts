@@ -58,6 +58,13 @@ export function parseExoTemplate(content: string, speakerId: string, sourceName:
   };
 }
 
+// Match the established local Python round() contract at exact half ties.
+function roundHalfEven(value: number): number {
+  const lower = Math.floor(value);
+  const fraction = value - lower;
+  return fraction === 0.5 ? (lower % 2 === 0 ? lower : lower + 1) : Math.round(value);
+}
+
 export function assignFrames(segments: Segment[], fps: number, speakerOrder: Record<string, number>): Segment[] {
   const sorted = [...segments].sort((a, b) => {
     const delta = a.start_sec - b.start_sec;
@@ -68,8 +75,8 @@ export function assignFrames(segments: Segment[], fps: number, speakerOrder: Rec
   });
   const previousBySpeaker = new Map<string, Segment>();
   return sorted.map((segment, index) => {
-    let startFrame = Math.round(segment.start_sec * fps) + 1;
-    let endFrame = Math.max(startFrame, Math.round(segment.end_sec * fps));
+    let startFrame = roundHalfEven(segment.start_sec * fps) + 1;
+    let endFrame = Math.max(startFrame, roundHalfEven(segment.end_sec * fps));
     const prev = previousBySpeaker.get(segment.speaker_id);
     if (prev?.end_frame && startFrame <= prev.end_frame) {
       startFrame = prev.end_frame + 1;
@@ -194,7 +201,7 @@ function renumberSectionName(name: string, index: number): string {
 }
 
 function formatSrtTime(value: number): string {
-  const totalMs = Math.max(0, Math.round(value * 1000));
+  const totalMs = Math.max(0, roundHalfEven(value * 1000));
   const hours = Math.floor(totalMs / 3600000);
   const minutes = Math.floor((totalMs % 3600000) / 60000);
   const seconds = Math.floor((totalMs % 60000) / 1000);
