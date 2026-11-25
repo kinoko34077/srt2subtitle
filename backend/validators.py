@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 
 class ValidationError(ValueError):
     def __init__(self, code: str, message: str) -> None:
@@ -68,17 +70,18 @@ def validate_v2_speaker_payload(display_name: str, subtitle_rule: dict, base_lay
 
 
 def _coerce_int(value: object, field_name: str) -> int:
-    try:
-        return int(float(value))
-    except (TypeError, ValueError) as exc:
-        raise ValidationError("ERR-NUMBER-001", f"{field_name} は数値で指定してください。") from exc
+    return int(_coerce_float(value, field_name))
 
 
 def _coerce_float(value: object, field_name: str) -> float:
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError) as exc:
         raise ValidationError("ERR-NUMBER-001", f"{field_name} は数値で指定してください。") from exc
+    # nan は範囲比較をすり抜け、inf は int 変換で OverflowError になるため入口で拒否する。
+    if not math.isfinite(number):
+        raise ValidationError("ERR-NUMBER-001", f"{field_name} は有限の数値で指定してください。")
+    return number
 
 
 def _validate_asr_model(value: object) -> str:
